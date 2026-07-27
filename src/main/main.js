@@ -264,7 +264,7 @@ function checkThresholds(snap) {
           const reset = limit.resetsAt ? formatReset(limit.resetsAt) : null;
           new Notification({
             title: t.notify.title(th),
-            body: t.notify.body(limit.label, Math.round(limit.percent), reset),
+            body: t.notify.body(I18N.limitLabel(limit, t), Math.round(limit.percent), reset),
             silent: false,
           }).show();
         }

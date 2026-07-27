@@ -7,8 +7,6 @@ const auth = require('./auth');
 const net = require('./net');
 const history = require('./history');
 const rateGuard = require('./rate-guard');
-const settings = require('./settings');
-const I18N = require('../i18n');
 
 /**
  * Sabit yoklama: dakikada bir istek.
@@ -143,33 +141,37 @@ class Poller extends EventEmitter {
     }
   }
 
+  /**
+   * Hata durumunu {kind, status} olarak saklar -- goruntu metnini BURADA
+   * kurup dondurmuyoruz. Renderer/tray bu ham veriden her render'da
+   * I18N.errorMessage() ile GUNCEL dilde metni kurar. Aksi halde kullanici
+   * dil degistirdiginde, bir sonraki API cagrisina (rate-limit sirasinda
+   * dakikalarca surebilir) kadar eski dildeki metin ekranda kalirdi.
+   */
   handleError(err) {
-    const t = I18N.pick(settings.get().language);
-    let message = t.errors.network;
     let kind = 'network';
+    let status;
 
     if (err instanceof net.HttpError) {
       if (err.status === 401 || err.status === 403) {
         kind = 'auth';
-        message = err.status === 403 ? t.errors.auth403 : t.errors.auth401;
+        status = err.status;
       } else if (err.status === 429) {
         kind = 'rate';
-        message = t.errors.rate;
         this.retryAfterMs = err.retryAfterMs || undefined;
       } else {
         kind = 'server';
-        message = t.errors.server(err.status);
+        status = err.status;
       }
     } else if (/giris yapilmamis|Yenileme token/i.test(err.message || '')) {
       kind = 'auth';
-      message = t.errors.needLogin;
     }
 
     if (kind !== 'auth') this.backoffIndex += 1;
 
     this.update({
       status: 'error',
-      error: { kind, message },
+      error: { kind, status },
     });
   }
 

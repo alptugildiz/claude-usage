@@ -411,8 +411,65 @@ function pick(lang) {
   return I18N[lang] || I18N[DEFAULT_LANG];
 }
 
+/**
+ * Limit karti/tooltip/bildirim icin goruntu etiketi.
+ *
+ * ONEMLI: main process bu metni ONCEDEN URETIP GONDERMEZ -- fetch aninda
+ * dondurulmus bir dil, kullanici sonra dil degistirdiginde bir sonraki
+ * API cagrisina kadar guncellenmiyordu (rate-limit sirasinda dakikalarca
+ * suren bir gecikme olabiliyordu). Bunun yerine main process sadece HAM
+ * veriyi (kind/scope) tasir, bu fonksiyon her render'da CAGRILDIGI ANDAKI
+ * dille metni kurar -- boylece dil degisikligi tum ekranlarda aninda
+ * yansir.
+ */
+function limitLabel(lim, t) {
+  if (!lim) return '';
+  if (lim.scopeModelName) return t.limits.weeklyModel(lim.scopeModelName);
+  if (lim.scopeSurfaceName) return t.limits.weeklySurface(lim.scopeSurfaceName);
+  const map = {
+    session: t.limits.session,
+    five_hour: t.limits.session,
+    weekly_all: t.limits.weeklyAll,
+    seven_day: t.limits.weeklyAll,
+    weekly_scoped: t.limits.weeklyAll,
+    opus: t.limits.weeklyOpus,
+    seven_day_opus: t.limits.weeklyOpus,
+    sonnet: t.limits.weeklySonnet,
+    seven_day_sonnet: t.limits.weeklySonnet,
+    seven_day_oauth_apps: t.limits.weeklyOauthApps,
+    seven_day_cowork: t.limits.weeklyCowork,
+  };
+  return map[lim.kind] || humanizeKind(lim.kind);
+}
+
+/** API'nin henuz bilmedigimiz bir 'kind' gonderdigi nadir durum icin yedek. */
+function humanizeKind(kind) {
+  if (!kind) return 'Limit';
+  return String(kind).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/**
+ * Poller hata nesnesinden ({kind, status}) goruntu metni kurar. Ayni
+ * sebeple (canli dil degisimi) main process bu metni onceden kurup
+ * dondurmuyor -- ham {kind, status} tasinir.
+ */
+function errorMessage(err, t) {
+  if (!err) return '';
+  if (err.kind === 'auth') {
+    if (err.status === 403) return t.errors.auth403;
+    if (err.status === 401) return t.errors.auth401;
+    return t.errors.needLogin;
+  }
+  if (err.kind === 'rate') return t.errors.rate;
+  if (err.kind === 'server') return t.errors.server(err.status);
+  return t.errors.network;
+}
+
 I18N.pick = pick;
 I18N.DEFAULT_LANG = DEFAULT_LANG;
+I18N.limitLabel = limitLabel;
+I18N.humanizeKind = humanizeKind;
+I18N.errorMessage = errorMessage;
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = I18N;

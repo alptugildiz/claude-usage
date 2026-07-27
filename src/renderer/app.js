@@ -255,6 +255,16 @@ function sparkline(series, level) {
 
 /* ------------------------------ dashboard ------------------------------ */
 
+/**
+ * Hata metnini GUNCEL dilde kurar. Main process sadece {kind,status}
+ * tasir -- boylece kullanici dil degistirdiginde bu metin (rate-limit
+ * sirasinda dakikalarca gecerli kalabilen bir hata bile olsa) her render'da
+ * aninda dogru dilde gorunur.
+ */
+function errorText(err) {
+  return I18N.errorMessage(err, T);
+}
+
 function renderDashboard() {
   const root = $('#view-dashboard');
   root.textContent = '';
@@ -271,12 +281,12 @@ function renderDashboard() {
   }
 
   if (snap.error && snap.error.kind === 'auth' && !snap.usage) {
-    root.appendChild(loginState(snap.error.message));
+    root.appendChild(loginState(errorText(snap.error)));
     return;
   }
 
   if (!snap.usage && snap.error) {
-    root.appendChild(errorState(snap.error.message));
+    root.appendChild(errorState(errorText(snap.error)));
     return;
   }
 
@@ -291,7 +301,7 @@ function renderDashboard() {
       el(
         'span',
         null,
-        `${snap.error.message}${snap.lastOkAt ? T.dash.stale(fmtAgo(snap.lastOkAt)) : ''}`
+        `${errorText(snap.error)}${snap.lastOkAt ? T.dash.stale(fmtAgo(snap.lastOkAt)) : ''}`
       )
     );
     n.style.marginBottom = '12px';
@@ -356,7 +366,7 @@ function limitCard(lim, hist, style) {
 
   const meta = el('div', 'meta');
   const label = el('div', 'label');
-  label.append(document.createTextNode(lim.label));
+  label.append(document.createTextNode(I18N.limitLabel(lim, T)));
 
   const d = hist && (hist.delta5m ?? null);
   if (d != null) {

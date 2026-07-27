@@ -153,11 +153,12 @@ class TrayController {
 }
 
 function buildTooltip(snap) {
-  const tr = t().tray;
+  const full = t();
+  const tr = full.tray;
   if (snap.status === 'logged-out') return tr.loggedOut;
   if (snap.status === 'loading' && !snap.usage) return tr.loading;
   if (snap.status === 'error' && !snap.usage) {
-    return tr.error(snap.error?.message || tr.genericError);
+    return tr.error(I18N.errorMessage(snap.error, full) || tr.genericError);
   }
 
   const limits = snap.usage?.limits || [];
@@ -165,7 +166,7 @@ function buildTooltip(snap) {
 
   const lines = limits.slice(0, 4).map((l) => {
     const reset = l.resetsAt ? ` · ${shortReset(l.resetsAt)}` : '';
-    return `${l.label}: %${Math.round(l.percent)}${reset}`;
+    return `${I18N.limitLabel(l, full)}: %${Math.round(l.percent)}${reset}`;
   });
   if (snap.status === 'error') lines.push(tr.stale);
   return `${tr.tooltipBase}\n${lines.join('\n')}`;

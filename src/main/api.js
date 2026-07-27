@@ -3,8 +3,6 @@
 const { API } = require('./config');
 const net = require('./net');
 const auth = require('./auth');
-const settings = require('./settings');
-const I18N = require('../i18n');
 
 /**
  * Anthropic OAuth API istemcisi.
@@ -52,68 +50,44 @@ async function getProfile() {
  * `limits[]` dizisi ileriye donuk kaynaktir: Anthropic yeni bir limit tipi
  * ekledigimde UI kod degismeden gosterebilsin diye generic isleriz.
  * Ust seviye five_hour / seven_day alanlari eski aynadir, fallback'tir.
+ *
+ * ONEMLI: Burada dile ozel goruntu metni (label) URETILMEZ -- sadece kind
+ * ve scope adi gibi HAM veri tasinir. Metin, her render'da GUNCEL dille
+ * renderer/tray tarafinda I18N.limitLabel() ile kurulur. Aksi halde
+ * (eskiden yapildigi gibi) burada onceden kurulmus bir string kullanici
+ * dil degistirdiginde bir sonraki API cagrisina kadar eski dilde takili
+ * kalirdi -- rate-limit sirasinda bu dakikalarca surebilir.
  * ------------------------------------------------------------------------ */
 
-function kindLabels(t) {
-  return {
-    session: t.limits.session,
-    five_hour: t.limits.session,
-    weekly_all: t.limits.weeklyAll,
-    seven_day: t.limits.weeklyAll,
-    weekly_scoped: t.limits.weeklyAll,
-    opus: t.limits.weeklyOpus,
-    sonnet: t.limits.weeklySonnet,
-  };
-}
-
-function labelFor(entry, t) {
-  if (entry.scope && entry.scope.model && entry.scope.model.display_name) {
-    return t.limits.weeklyModel(entry.scope.model.display_name);
-  }
-  if (entry.scope && entry.scope.surface && entry.scope.surface.display_name) {
-    return t.limits.weeklySurface(entry.scope.surface.display_name);
-  }
-  return kindLabels(t)[entry.kind] || humanize(entry.kind);
-}
-
-function humanize(kind) {
-  if (!kind) return 'Limit';
-  return String(kind).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
-}
-
-/** Ust seviye alan adindan (five_hour, seven_day_opus...) etiket uretir. */
-function legacyLabels(t) {
-  return {
-    five_hour: t.limits.session,
-    seven_day: t.limits.weeklyAll,
-    seven_day_opus: t.limits.weeklyOpus,
-    seven_day_sonnet: t.limits.weeklySonnet,
-    seven_day_oauth_apps: t.limits.weeklyOauthApps,
-    seven_day_cowork: t.limits.weeklyCowork,
-  };
-}
+const LEGACY_KEYS = [
+  'five_hour',
+  'seven_day',
+  'seven_day_opus',
+  'seven_day_sonnet',
+  'seven_day_oauth_apps',
+  'seven_day_cowork',
+];
 
 /**
  * Ham /api/oauth/usage cevabini UI'in dogrudan cizebilecegi hale getirir.
- * Sadece sayilar ve etiketler doner -- hicbir sir icermez.
+ * Sadece sayilar ve dilden bagimsiz tanimlayicilar doner -- hicbir sir
+ * icermez.
  */
 function normalizeUsage(raw) {
   if (!raw || typeof raw !== 'object') return { limits: [], spend: null, raw: null };
 
-  const t = I18N.pick(settings.get().language);
   const limits = [];
-  const seen = new Set();
 
   if (Array.isArray(raw.limits)) {
     for (const entry of raw.limits) {
       if (!entry || typeof entry.percent !== 'number') continue;
       const id = `${entry.kind}:${entry.scope?.model?.display_name || entry.group || ''}`;
-      seen.add(id);
       limits.push({
         id,
         kind: entry.kind,
         group: entry.group || entry.kind,
-        label: labelFor(entry, t),
+        scopeModelName: entry.scope?.model?.display_name || null,
+        scopeSurfaceName: entry.scope?.surface?.display_name || null,
         percent: clampPct(entry.percent),
         severity: entry.severity || null,
         resetsAt: entry.resets_at || null,
@@ -124,14 +98,15 @@ function normalizeUsage(raw) {
 
   // limits[] bos ya da eksikse eski alanlardan tamamla.
   if (limits.length === 0) {
-    for (const [key, label] of Object.entries(legacyLabels(t))) {
+    for (const key of LEGACY_KEYS) {
       const w = raw[key];
       if (!w || typeof w.utilization !== 'number') continue;
       limits.push({
         id: key,
         kind: key,
         group: key === 'five_hour' ? 'session' : 'weekly',
-        label,
+        scopeModelName: null,
+        scopeSurfaceName: null,
         percent: clampPct(w.utilization),
         severity: null,
         resetsAt: w.resets_at || null,
