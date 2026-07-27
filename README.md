@@ -3,8 +3,6 @@
 Claude kullanım limitlerini sistem tepsisinden anlık takip eden Windows masaüstü uygulaması.
 `/usage` komutunun gösterdiği her şeye terminal açmadan erişirsin.
 
-![tema: Midnight](build/icon.png)
-
 ## Ne yapar
 
 - **Canlı limitler** — 5 saatlik oturum, haftalık (tüm modeller + model bazlı), ekstra kullanım.
