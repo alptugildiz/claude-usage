@@ -325,7 +325,9 @@ function window(events, from, to) {
     const c = pricing.costOf(e.model, t);
     cost += c;
 
-    const mKey = e.model || 'bilinmeyen';
+    // Dilden bagimsiz sentinel -- renderer prettyModel() bunu I18N'deki
+    // "Bilinmeyen model" / "Unknown model" metnine cevirir.
+    const mKey = e.model || '__unknown__';
     const m = models.get(mKey) || { tokens: 0, cost: 0, requests: 0 };
     m.tokens += t.input + t.output + t.cacheRead + t.cacheWrite5m + t.cacheWrite1h;
     m.cost += c;
@@ -355,20 +357,16 @@ function window(events, from, to) {
     if (s.total > 0 && s.side / s.total > 0.3) subagentHeavy += 1;
   }
 
+  // Sadece kod + yuzde donuyoruz; metni (dile gore) renderer I18N'den kurar.
   const behaviors = [];
   if (requests > 0) {
-    pushBehavior(behaviors, 'cache_miss', bigCacheMiss / requests,
-      'kullanımın >100k token cache yazımı içeriyordu');
-    pushBehavior(behaviors, 'long_context', longContext / requests,
-      'kullanımın >150k context ile yapıldı');
-    pushBehavior(behaviors, 'subagent', sidechainReq / requests,
-      'kullanımın subagent isteklerinden geldi');
+    pushBehavior(behaviors, 'cache_miss', bigCacheMiss / requests);
+    pushBehavior(behaviors, 'long_context', longContext / requests);
+    pushBehavior(behaviors, 'subagent', sidechainReq / requests);
   }
   if (sessions.size > 0) {
-    pushBehavior(behaviors, 'subagent_heavy', subagentHeavy / sessions.size,
-      'oturumların subagent yoğunluydu');
-    pushBehavior(behaviors, 'long_session', longSessions / sessions.size,
-      'oturumların 8+ saat sürdü');
+    pushBehavior(behaviors, 'subagent_heavy', subagentHeavy / sessions.size);
+    pushBehavior(behaviors, 'long_session', longSessions / sessions.size);
   }
 
   return {
@@ -388,9 +386,9 @@ function window(events, from, to) {
   };
 }
 
-function pushBehavior(list, key, ratio, label) {
+function pushBehavior(list, key, ratio) {
   const pct = Math.round(ratio * 100);
-  if (pct >= 5) list.push({ key, pct, label });
+  if (pct >= 5) list.push({ key, pct });
 }
 
 function bump(map, key) {

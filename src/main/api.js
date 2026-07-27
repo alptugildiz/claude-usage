@@ -3,6 +3,8 @@
 const { API } = require('./config');
 const net = require('./net');
 const auth = require('./auth');
+const settings = require('./settings');
+const I18N = require('../i18n');
 
 /**
  * Anthropic OAuth API istemcisi.
@@ -52,24 +54,26 @@ async function getProfile() {
  * Ust seviye five_hour / seven_day alanlari eski aynadir, fallback'tir.
  * ------------------------------------------------------------------------ */
 
-const KIND_LABELS = {
-  session: '5 saatlik oturum',
-  five_hour: '5 saatlik oturum',
-  weekly_all: 'Haftalik · tüm modeller',
-  seven_day: 'Haftalik · tüm modeller',
-  weekly_scoped: 'Haftalik',
-  opus: 'Haftalik · Opus',
-  sonnet: 'Haftalik · Sonnet',
-};
+function kindLabels(t) {
+  return {
+    session: t.limits.session,
+    five_hour: t.limits.session,
+    weekly_all: t.limits.weeklyAll,
+    seven_day: t.limits.weeklyAll,
+    weekly_scoped: t.limits.weeklyAll,
+    opus: t.limits.weeklyOpus,
+    sonnet: t.limits.weeklySonnet,
+  };
+}
 
-function labelFor(entry) {
+function labelFor(entry, t) {
   if (entry.scope && entry.scope.model && entry.scope.model.display_name) {
-    return `Haftalik · ${entry.scope.model.display_name}`;
+    return t.limits.weeklyModel(entry.scope.model.display_name);
   }
   if (entry.scope && entry.scope.surface && entry.scope.surface.display_name) {
-    return `Haftalik · ${entry.scope.surface.display_name}`;
+    return t.limits.weeklySurface(entry.scope.surface.display_name);
   }
-  return KIND_LABELS[entry.kind] || humanize(entry.kind);
+  return kindLabels(t)[entry.kind] || humanize(entry.kind);
 }
 
 function humanize(kind) {
@@ -78,14 +82,16 @@ function humanize(kind) {
 }
 
 /** Ust seviye alan adindan (five_hour, seven_day_opus...) etiket uretir. */
-const LEGACY_LABELS = {
-  five_hour: '5 saatlik oturum',
-  seven_day: 'Haftalik · tüm modeller',
-  seven_day_opus: 'Haftalik · Opus',
-  seven_day_sonnet: 'Haftalik · Sonnet',
-  seven_day_oauth_apps: 'Haftalik · OAuth uygulamalari',
-  seven_day_cowork: 'Haftalik · Cowork',
-};
+function legacyLabels(t) {
+  return {
+    five_hour: t.limits.session,
+    seven_day: t.limits.weeklyAll,
+    seven_day_opus: t.limits.weeklyOpus,
+    seven_day_sonnet: t.limits.weeklySonnet,
+    seven_day_oauth_apps: t.limits.weeklyOauthApps,
+    seven_day_cowork: t.limits.weeklyCowork,
+  };
+}
 
 /**
  * Ham /api/oauth/usage cevabini UI'in dogrudan cizebilecegi hale getirir.
@@ -94,6 +100,7 @@ const LEGACY_LABELS = {
 function normalizeUsage(raw) {
   if (!raw || typeof raw !== 'object') return { limits: [], spend: null, raw: null };
 
+  const t = I18N.pick(settings.get().language);
   const limits = [];
   const seen = new Set();
 
@@ -106,7 +113,7 @@ function normalizeUsage(raw) {
         id,
         kind: entry.kind,
         group: entry.group || entry.kind,
-        label: labelFor(entry),
+        label: labelFor(entry, t),
         percent: clampPct(entry.percent),
         severity: entry.severity || null,
         resetsAt: entry.resets_at || null,
@@ -117,7 +124,7 @@ function normalizeUsage(raw) {
 
   // limits[] bos ya da eksikse eski alanlardan tamamla.
   if (limits.length === 0) {
-    for (const [key, label] of Object.entries(LEGACY_LABELS)) {
+    for (const [key, label] of Object.entries(legacyLabels(t))) {
       const w = raw[key];
       if (!w || typeof w.utilization !== 'number') continue;
       limits.push({

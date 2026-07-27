@@ -1,7 +1,7 @@
 {
   "name": "claude-usage",
   "productName": "Claude Usage",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Claude kullanim limitlerini anlik takip eden masaustu uygulamasi",
   "main": "src/main/main.js",
   "author": "alptug",

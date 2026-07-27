@@ -3,6 +3,12 @@
 const { Tray, Menu, nativeImage, app } = require('electron');
 const { Canvas, drawText, textWidth } = require('./icon-render');
 const { SEVERITY } = require('./config');
+const settings = require('./settings');
+const I18N = require('../i18n');
+
+function t() {
+  return I18N.pick(settings.get().language);
+}
 
 /**
  * Sistem tepsisi ikonu. Calisma aninda cizilir: yuzdeye gore dolan halka
@@ -87,7 +93,7 @@ class TrayController {
   create(handlers) {
     this.handlers = handlers;
     this.tray = new Tray(renderIcon(0, 'idle'));
-    this.tray.setToolTip('Claude Usage');
+    this.tray.setToolTip(t().tray.tooltipBase);
     this.tray.on('click', () => this.handlers.onShow && this.handlers.onShow());
     this.tray.on('double-click', () => this.handlers.onShow && this.handlers.onShow());
     this.rebuildMenu();
@@ -97,14 +103,15 @@ class TrayController {
   rebuildMenu() {
     if (!this.tray) return;
     const h = this.handlers;
+    const tr = t().tray;
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
-        { label: 'Göster', click: () => h.onShow && h.onShow() },
-        { label: 'Şimdi yenile', click: () => h.onRefresh && h.onRefresh() },
+        { label: tr.show, click: () => h.onShow && h.onShow() },
+        { label: tr.refreshNow, click: () => h.onRefresh && h.onRefresh() },
         { type: 'separator' },
-        { label: 'Ayarlar', click: () => h.onSettings && h.onSettings() },
+        { label: tr.settings, click: () => h.onSettings && h.onSettings() },
         {
-          label: 'Bilgisayar açılınca başlat',
+          label: tr.openAtLogin,
           type: 'checkbox',
           checked: h.isAutoLaunchEnabled ? h.isAutoLaunchEnabled() : false,
           click: (item) => {
@@ -113,7 +120,7 @@ class TrayController {
           },
         },
         { type: 'separator' },
-        { label: 'Çıkış', click: () => h.onQuit && h.onQuit() },
+        { label: tr.quit, click: () => h.onQuit && h.onQuit() },
       ])
     );
   }
@@ -146,32 +153,34 @@ class TrayController {
 }
 
 function buildTooltip(snap) {
-  if (snap.status === 'logged-out') return 'Claude Usage — giriş yapılmadı';
-  if (snap.status === 'loading' && !snap.usage) return 'Claude Usage — yükleniyor…';
+  const tr = t().tray;
+  if (snap.status === 'logged-out') return tr.loggedOut;
+  if (snap.status === 'loading' && !snap.usage) return tr.loading;
   if (snap.status === 'error' && !snap.usage) {
-    return `Claude Usage — ${snap.error?.message || 'hata'}`;
+    return tr.error(snap.error?.message || tr.genericError);
   }
 
   const limits = snap.usage?.limits || [];
-  if (limits.length === 0) return 'Claude Usage';
+  if (limits.length === 0) return tr.tooltipBase;
 
   const lines = limits.slice(0, 4).map((l) => {
     const reset = l.resetsAt ? ` · ${shortReset(l.resetsAt)}` : '';
     return `${l.label}: %${Math.round(l.percent)}${reset}`;
   });
-  if (snap.status === 'error') lines.push('(guncel degil)');
-  return `Claude Usage\n${lines.join('\n')}`;
+  if (snap.status === 'error') lines.push(tr.stale);
+  return `${tr.tooltipBase}\n${lines.join('\n')}`;
 }
 
 function shortReset(iso) {
+  const time = t().time;
   const ms = Date.parse(iso) - Date.now();
   if (!Number.isFinite(ms)) return '';
-  if (ms <= 0) return 'sıfırlanıyor';
+  if (ms <= 0) return time.resetting;
   const mins = Math.round(ms / 60000);
-  if (mins < 60) return `${mins} dk`;
+  if (mins < 60) return time.shortMin(mins);
   const hours = Math.round(mins / 60);
-  if (hours < 48) return `${hours} sa`;
-  return `${Math.round(hours / 24)} gün`;
+  if (hours < 48) return time.shortHour(hours);
+  return time.shortDay(Math.round(hours / 24));
 }
 
 module.exports = new TrayController();

@@ -1,7 +1,12 @@
 'use strict';
 
 /* Renderer. Sir bilmez, ag cagrisi yapmaz -- yalnizca main'den gelen
-   hesaplanmis degerleri cizer. */
+   hesaplanmis degerleri cizer.
+
+   I18N: index.html'de bu dosyadan once yuklenen ../i18n.js script'inin
+   tanimladigi global degisken (duz <script> etiketi -- ayni belgedeki
+   sonraki script'ler top-level const/let'i paylasir, window.I18N degil
+   ama bare "I18N" olarak erisilebilir). */
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const el = (tag, cls, text) => {
@@ -21,25 +26,48 @@ const state = {
   mini: false,
 };
 
+/* -------------------------------- dil ----------------------------------- */
+
+let LANG = I18N.DEFAULT_LANG;
+let T = I18N.pick(LANG);
+
+function setLang(lang) {
+  LANG = lang;
+  T = I18N.pick(lang);
+}
+
+/** index.html'deki data-i18n / data-i18n-title etiketli sabit metinleri uygular. */
+function applyStaticI18n() {
+  const lookup = (key) => key.split('.').reduce((o, k) => (o ? o[k] : undefined), T);
+  for (const n of document.querySelectorAll('[data-i18n]')) {
+    const val = lookup(n.dataset.i18n);
+    if (typeof val === 'string') n.textContent = val;
+  }
+  for (const n of document.querySelectorAll('[data-i18n-title]')) {
+    const val = lookup(n.dataset.i18nTitle);
+    if (typeof val === 'string') n.title = val;
+  }
+}
+
 /* ------------------------------ biçimleme ------------------------------ */
 
-const nf = new Intl.NumberFormat('tr-TR');
-
 function fmtInt(n) {
-  return nf.format(Math.round(n || 0));
+  return new Intl.NumberFormat(T.locale).format(Math.round(n || 0));
 }
 
 function fmtTokens(n) {
   n = n || 0;
-  if (n >= 1e9) return (n / 1e9).toFixed(1).replace('.', ',') + ' Mr';
-  if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', ',') + ' M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1).replace('.', ',') + ' B';
+  const u = T.tokenUnits;
+  const sep = T.decimalSep;
+  if (n >= 1e9) return (n / 1e9).toFixed(1).replace('.', sep) + ' ' + u.b;
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', sep) + ' ' + u.m;
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace('.', sep) + ' ' + u.k;
   return fmtInt(n);
 }
 
 function fmtMoney(v, currency = 'USD', decimals = 2) {
   try {
-    return new Intl.NumberFormat('tr-TR', {
+    return new Intl.NumberFormat(T.locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: decimals,
@@ -55,34 +83,40 @@ function fmtClock(iso) {
   if (Number.isNaN(d.getTime())) return '';
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
   if (sameDay) return time;
-  const day = d.toLocaleDateString('tr-TR', { weekday: 'short' });
+  const day = d.toLocaleDateString(T.locale, { weekday: 'short' });
   return `${day} ${time}`;
 }
 
-function fmtCountdown(iso, zeroLabel = 'sıfırlanıyor') {
+function fmtCountdown(iso, zeroLabel) {
   const ms = Date.parse(iso) - Date.now();
   if (!Number.isFinite(ms)) return '';
-  if (ms <= 0) return zeroLabel;
-  if (ms < 60000) return `${Math.ceil(ms / 1000)} sn kaldı`;
+  if (ms <= 0) return zeroLabel != null ? zeroLabel : T.time.resetting;
+  if (ms < 60000) return T.time.secLeft(Math.ceil(ms / 1000));
   const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${mins} dk kaldı`;
+  if (mins < 60) return T.time.minLeft(mins);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  if (h < 24) return m ? `${h} sa ${m} dk kaldı` : `${h} sa kaldı`;
+  if (h < 24) return T.time.hourMinLeft(h, m);
   const d = Math.floor(h / 24);
-  return `${d} gün ${h % 24} sa kaldı`;
+  return T.time.dayHourLeft(d, h % 24);
+}
+
+/** Dile gore %84 (tr) veya 84% (en) bicimler. */
+function fmtPct(n) {
+  const v = Math.round(Number(n) || 0);
+  return T.pctPrefix ? `%${v}` : `${v}%`;
 }
 
 function fmtAgo(ts) {
   if (!ts) return '';
   const s = Math.round((Date.now() - ts) / 1000);
-  if (s < 10) return 'az önce';
-  if (s < 60) return `${s} sn önce`;
+  if (s < 10) return T.time.justNow;
+  if (s < 60) return T.time.secAgo(s);
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} dk önce`;
-  return `${Math.round(m / 60)} sa önce`;
+  if (m < 60) return T.time.minAgo(m);
+  return T.time.hourAgo(Math.round(m / 60));
 }
 
 /**
@@ -257,9 +291,7 @@ function renderDashboard() {
       el(
         'span',
         null,
-        `${snap.error.message}${
-          snap.lastOkAt ? ` — gösterilen veri ${fmtAgo(snap.lastOkAt)}.` : ''
-        }`
+        `${snap.error.message}${snap.lastOkAt ? T.dash.stale(fmtAgo(snap.lastOkAt)) : ''}`
       )
     );
     n.style.marginBottom = '12px';
@@ -268,7 +300,7 @@ function renderDashboard() {
 
   const limits = (snap.usage && snap.usage.limits) || [];
   if (!limits.length) {
-    root.appendChild(errorState('Bu hesap için gösterilecek limit bulunamadı.'));
+    root.appendChild(errorState(T.dash.noLimits));
     return;
   }
 
@@ -281,12 +313,12 @@ function renderDashboard() {
 
   const foot = el('div', 'row between');
   foot.style.marginTop = '12px';
-  const updated = el('span', 'faint', `Güncellendi ${fmtAgo(snap.lastOkAt)}`);
+  const updated = el('span', 'faint', T.dash.updatedLine(fmtAgo(snap.lastOkAt)));
   updated.dataset.ago = String(snap.lastOkAt || '');
   const next = el('span', 'faint');
   if (snap.nextPollAt) {
     next.dataset.next = new Date(snap.nextPollAt).toISOString();
-    next.textContent = `sonraki kontrol ${fmtCountdown(next.dataset.next, 'şimdi')}`;
+    next.textContent = T.dash.nextPoll(fmtCountdown(next.dataset.next, T.time.now));
   }
   foot.append(updated, next);
   foot.style.fontSize = '11.5px';
@@ -331,7 +363,7 @@ function limitCard(lim, hist, style) {
     const badge = el(
       'span',
       `delta ${d > 0 ? 'up' : 'down'}`,
-      `${d > 0 ? '+' : ''}${d.toFixed(0)}% · 5dk`
+      `${d > 0 ? '+' : ''}${d.toFixed(0)}% · ${T.dash.deltaSuffix}`
     );
     label.appendChild(badge);
   }
@@ -342,7 +374,7 @@ function limitCard(lim, hist, style) {
     line.style.margin = '8px 0 6px';
     const nums = el('div', 'row between');
     nums.style.marginBottom = '6px';
-    const pctEl = el('span', 'mono', `%${Math.round(lim.percent)}`);
+    const pctEl = el('span', 'mono', fmtPct(lim.percent));
     pctEl.style.fontWeight = '700';
     nums.append(pctEl);
     line.append(nums, bar(lim.percent, level));
@@ -353,7 +385,7 @@ function limitCard(lim, hist, style) {
     const sub = el(
       'div',
       'sub',
-      `sıfırlanır ${fmtClock(lim.resetsAt)} · ${fmtCountdown(lim.resetsAt)}`
+      T.dash.resetLine(fmtClock(lim.resetsAt), fmtCountdown(lim.resetsAt))
     );
     sub.dataset.reset = lim.resetsAt;
     meta.appendChild(sub);
@@ -373,8 +405,8 @@ function spendCard(s) {
 
   const head = el('div', 'row between');
   head.append(
-    el('div', 'section-title', 'Ekstra kullanım'),
-    el('span', s.enabled ? 'badge neutral' : 'badge neutral', s.enabled ? 'açık' : 'kapalı')
+    el('div', 'section-title', T.spend.title),
+    el('span', 'badge neutral', s.enabled ? T.spend.enabled : T.spend.disabled)
   );
   head.querySelector('.section-title').style.margin = '0';
   card.appendChild(head);
@@ -388,7 +420,7 @@ function spendCard(s) {
   row.appendChild(amount);
   if (s.limit != null) {
     row.appendChild(
-      el('span', 'muted', `/ ${fmtMoney(s.limit, s.currency, s.decimals)} aylık`)
+      el('span', 'muted', `/ ${fmtMoney(s.limit, s.currency, s.decimals)} ${T.spend.perMonth}`)
     );
   }
   card.appendChild(row);
@@ -402,7 +434,7 @@ function spendCard(s) {
   if (s.limitReached) {
     const n = el('div', 'notice warn');
     n.style.marginTop = '10px';
-    n.append(el('span', null, '!'), el('span', null, 'Harcama limitine ulaşıldı.'));
+    n.append(el('span', null, '!'), el('span', null, T.spend.limitReached));
     card.appendChild(n);
   }
   return card;
@@ -413,31 +445,24 @@ function loginState(message) {
   const ic = el('div', 'icon');
   ic.appendChild(icon(ICONS.lock));
   s.appendChild(ic);
-  s.appendChild(el('div', 'big', 'Claude hesabınla giriş yap'));
-  s.appendChild(
-    el(
-      'div',
-      'sub',
-      message ||
-        'Kullanım limitlerini canlı görebilmek için tarayıcıda Claude hesabına giriş yap. Uygulama kendi oturumunu açar; Claude Code oturumuna dokunmaz.'
-    )
-  );
+  s.appendChild(el('div', 'big', T.login.title));
+  s.appendChild(el('div', 'sub', message || T.login.sub));
 
-  const btn = el('button', 'btn primary', 'Claude ile giriş yap');
+  const btn = el('button', 'btn primary', T.login.button);
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    btn.textContent = 'Tarayıcı açılıyor…';
+    btn.textContent = T.login.opening;
     try {
       await window.usage.login();
     } catch (err) {
       btn.disabled = false;
-      btn.textContent = 'Claude ile giriş yap';
+      btn.textContent = T.login.button;
       showInline(s, String(err.message || err));
     }
   });
   s.appendChild(btn);
 
-  const alt = el('button', 'btn ghost small', 'Tarayıcı yönlendirmesi çalışmıyor mu?');
+  const alt = el('button', 'btn ghost small', T.login.altButton);
   alt.style.marginTop = '10px';
   alt.style.display = 'block';
   alt.style.marginLeft = 'auto';
@@ -450,20 +475,14 @@ function loginState(message) {
 
 async function renderManualLogin(container) {
   container.textContent = '';
-  container.appendChild(el('div', 'big', 'Kodu elle yapıştır'));
-  container.appendChild(
-    el(
-      'div',
-      'sub',
-      'Tarayıcıda açılan sayfada izin verdikten sonra gösterilen kodu buraya yapıştır.'
-    )
-  );
+  container.appendChild(el('div', 'big', T.manual.title));
+  container.appendChild(el('div', 'sub', T.manual.sub));
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'kod#state';
+  input.placeholder = T.manual.placeholder;
   input.style.width = '280px';
   input.style.textAlign = 'center';
-  const submit = el('button', 'btn primary', 'Doğrula');
+  const submit = el('button', 'btn primary', T.manual.verify);
   submit.style.marginLeft = '8px';
 
   const row = el('div', 'row');
@@ -493,9 +512,9 @@ function errorState(message) {
   const ic = el('div', 'icon');
   ic.appendChild(icon(ICONS.plug));
   s.appendChild(ic);
-  s.appendChild(el('div', 'big', 'Veri alınamadı'));
+  s.appendChild(el('div', 'big', T.dash.errorTitle));
   s.appendChild(el('div', 'sub', message));
-  const btn = el('button', 'btn', 'Tekrar dene');
+  const btn = el('button', 'btn', T.dash.retry);
   btn.addEventListener('click', () => window.usage.refresh());
   s.appendChild(btn);
   return s;
@@ -528,34 +547,21 @@ function renderAnalytics() {
     const ic = el('div', 'icon');
     ic.appendChild(icon(ICONS.chart));
     s.appendChild(ic);
-    s.appendChild(el('div', 'big', 'Yerel oturum verisi yok'));
+    s.appendChild(el('div', 'big', T.analytics.noDataTitle));
     s.appendChild(
-      el(
-        'div',
-        'sub',
-        a.reason === 'no-local-data'
-          ? 'Bu makinede ~/.claude/projects klasörü bulunamadı. Claude Code ile birkaç oturum açtıktan sonra burada analiz görünecek.'
-          : 'Analiz çalıştırılamadı.'
-      )
+      el('div', 'sub', a.reason === 'no-local-data' ? T.analytics.noDataSub : T.analytics.failed)
     );
     root.appendChild(s);
     return;
   }
 
   const note = el('div', 'notice');
-  note.append(
-    el('span', null, '!'),
-    el(
-      'span',
-      null,
-      'Yaklaşık — sadece bu makinedeki oturumlar. claude.ai ve diğer cihazlar dahil değil. Maliyet, API fiyatlarıyla yapılan bir tahmindir.'
-    )
-  );
+  note.append(el('span', null, '!'), el('span', null, T.analytics.disclaimer));
   note.style.marginBottom = '12px';
   root.appendChild(note);
 
-  root.appendChild(windowBlock('Son 24 saat', a.day));
-  root.appendChild(windowBlock('Son 7 gün', a.week));
+  root.appendChild(windowBlock(T.analytics.today, a.day));
+  root.appendChild(windowBlock(T.analytics.week, a.week));
   root.appendChild(breakdownSections(a.week));
 
   if (a.daily && a.daily.length) root.appendChild(dailyCard(a.daily));
@@ -567,12 +573,13 @@ function windowBlock(title, w) {
   wrap.style.marginBottom = '18px';
   wrap.appendChild(el('div', 'section-title', title));
 
+  const a = T.analytics;
   const grid = el('div', 'stat-grid');
   grid.append(
-    stat('İstek', fmtInt(w.requests), `${fmtInt(w.sessions)} oturum`),
-    stat('Token', fmtTokens(w.totalTokens), `${fmtTokens(w.tokens.cacheRead)} cache okuma`),
-    stat('Tahmini', fmtMoney(w.cost), 'API fiyatlarıyla'),
-    stat('Çıktı', fmtTokens(w.tokens.output), `${fmtTokens(w.tokens.input)} girdi`)
+    stat(a.requests, fmtInt(w.requests), a.sessionsSuffix(fmtInt(w.sessions))),
+    stat(a.tokens, fmtTokens(w.totalTokens), a.cacheReadSuffix(fmtTokens(w.tokens.cacheRead))),
+    stat(a.estimated, fmtMoney(w.cost), a.apiPriced),
+    stat(a.output, fmtTokens(w.tokens.output), a.inputSuffix(fmtTokens(w.tokens.input)))
   );
   wrap.appendChild(grid);
   return wrap;
@@ -585,17 +592,18 @@ function windowBlock(title, w) {
  */
 function breakdownSections(w) {
   const wrap = el('div');
+  const a = T.analytics;
 
   if (w.models.length) {
     const c = el('div', 'card');
-    c.appendChild(el('div', 'section-title', 'Model dağılımı'));
+    c.appendChild(el('div', 'section-title', a.modelDist));
     c.appendChild(barList(w.models.map((m) => ({ name: prettyModel(m.name), value: m.cost, note: fmtMoney(m.cost) }))));
     wrap.appendChild(c);
   }
 
   if (w.projects.length) {
     const c = el('div', 'card');
-    c.appendChild(el('div', 'section-title', 'Projeler'));
+    c.appendChild(el('div', 'section-title', a.projects));
     c.appendChild(
       barList(
         w.projects.map((p) => ({ name: p.name, value: p.tokens, note: fmtTokens(p.tokens) }))
@@ -605,10 +613,10 @@ function breakdownSections(w) {
   }
 
   const chipGroups = [
-    ['Skill / komut', w.skills],
-    ['Subagent', w.agents],
-    ['MCP sunucu', w.mcp],
-    ['Araç', w.tools],
+    [a.skillsCmd, w.skills],
+    [a.subagent, w.agents],
+    [a.mcpServer, w.mcp],
+    [a.tool, w.tools],
   ].filter(([, list]) => list && list.length);
 
   if (chipGroups.length) {
@@ -630,10 +638,11 @@ function breakdownSections(w) {
 
   if (w.behaviors && w.behaviors.length) {
     const c = el('div', 'card');
-    c.appendChild(el('div', 'section-title', 'Limitini ne yiyor? (7 gün)'));
+    c.appendChild(el('div', 'section-title', a.whatsEating));
     const list = el('div', 'blist');
     for (const b of w.behaviors) {
-      list.appendChild(barItem(`%${b.pct} ${b.label}`, b.pct, 100, ''));
+      const text = a.behaviors[b.key] ? a.behaviors[b.key](b.pct) : '';
+      list.appendChild(barItem(text, b.pct, 100, ''));
     }
     c.appendChild(list);
     wrap.appendChild(c);
@@ -644,6 +653,7 @@ function breakdownSections(w) {
 
 /** claude-opus-4-8 -> "Opus 4.8" · claude-haiku-4-5-20251001 -> "Haiku 4.5" */
 function prettyModel(id) {
+  if (id === '__unknown__') return T.analytics.unknownModel;
   return String(id)
     .replace(/^claude-/, '')
     .replace(/-\d{8}$/, '')
@@ -681,7 +691,7 @@ function barItem(name, value, max, note) {
 
 function dailyCard(daily) {
   const c = el('div', 'card');
-  c.appendChild(el('div', 'section-title', 'Günlük token'));
+  c.appendChild(el('div', 'section-title', T.analytics.dailyTokens));
   const max = Math.max(...daily.map((d) => d.tokens), 1);
   const bars = el('div', 'bars');
   for (const d of daily) {
@@ -704,67 +714,72 @@ function renderSettings() {
   root.textContent = '';
   const s = state.settings;
   if (!s) return;
+  const st_ = T.settings;
 
   /* --- görünüm --- */
   const look = el('div', 'card');
-  look.appendChild(el('div', 'section-title', 'Tema'));
+  look.appendChild(el('div', 'section-title', st_.theme));
   const themes = el('div', 'themes');
-  for (const t of THEMES) {
+  for (const th of THEMES) {
     const b = el('button', 'theme-opt');
-    b.setAttribute('aria-pressed', String(s.theme === t.id));
+    b.setAttribute('aria-pressed', String(s.theme === th.id));
     const sw = el('div', 'swatch');
-    for (const c of t.colors) {
+    for (const c of th.colors) {
       const i = el('i');
       i.style.background = c;
       sw.appendChild(i);
     }
-    b.append(sw, document.createTextNode(t.name));
-    b.addEventListener('click', () => save({ theme: t.id }));
+    b.append(sw, document.createTextNode(themeDisplayName(th)));
+    b.addEventListener('click', () => save({ theme: th.id }));
     themes.appendChild(b);
   }
   look.appendChild(themes);
 
   look.appendChild(settingRow(
-    'Vurgu rengi',
-    'Temanın kendi rengi yerine kendi rengini kullan.',
+    st_.accent,
+    st_.accentDesc,
     (() => {
       const wrap = el('div', 'row');
       const color = document.createElement('input');
       color.type = 'color';
       color.value = s.accent || currentAccentHex();
       color.addEventListener('change', () => save({ accent: color.value }));
-      const reset = el('button', 'btn ghost small', 'Sıfırla');
+      const reset = el('button', 'btn ghost small', st_.reset);
       reset.addEventListener('click', () => save({ accent: null }));
       wrap.append(color, reset);
       return wrap;
     })()
   ));
 
-  look.appendChild(rangeRow('Köşe yuvarlaklığı', 'Kart köşelerinin yumuşaklığı.', 'radius', s.radius, 0, 24, 1, (v) => `${v}px`));
-  look.appendChild(rangeRow('Saydamlık', 'Pencerenin arka planı ne kadar geçirgen olsun.', 'opacity', s.opacity, 40, 100, 1, (v) => `%${v}`));
-  look.appendChild(selectRow('Gösterim', 'Yüzdeler halka mı bar mı olsun.', 'gaugeStyle', s.gaugeStyle, [
-    ['ring', 'Halka'],
-    ['bar', 'Bar'],
+  look.appendChild(rangeRow(st_.radius, st_.radiusDesc, 'radius', s.radius, 0, 24, 1, (v) => `${v}px`));
+  look.appendChild(rangeRow(st_.opacity, st_.opacityDesc, 'opacity', s.opacity, 40, 100, 1, fmtPct));
+  look.appendChild(selectRow(st_.gauge, st_.gaugeDesc, 'gaugeStyle', s.gaugeStyle, [
+    ['ring', st_.gaugeRing],
+    ['bar', st_.gaugeBar],
   ]));
-  look.appendChild(toggleRow('Monospace yazı tipi', 'Tüm arayüzde eşit genişlikli yazı tipi kullan.', 'mono', s.mono));
-  look.appendChild(toggleRow('Animasyonlar', 'Geçiş ve hareket efektleri.', 'animations', s.animations));
-  look.appendChild(toggleRow('Kompakt mod', 'Daha küçük pencere ve sıkı yerleşim.', 'compact', s.compact));
+  look.appendChild(selectRow(st_.language, st_.languageDesc, 'language', s.language, [
+    ['tr', 'Türkçe'],
+    ['en', 'English'],
+  ]));
+  look.appendChild(toggleRow(st_.mono, st_.monoDesc, 'mono', s.mono));
+  look.appendChild(toggleRow(st_.animations, st_.animationsDesc, 'animations', s.animations));
+  look.appendChild(toggleRow(st_.compact, st_.compactDesc, 'compact', s.compact));
   root.appendChild(look);
 
   /* --- davranış --- */
   const behave = el('div', 'card');
-  behave.appendChild(el('div', 'section-title', 'Davranış'));
-  behave.appendChild(toggleRow('Bilgisayar açılınca başlat', 'Windows açılışında sessizce tepside başlar.', 'openAtLogin', s.openAtLogin));
-  behave.appendChild(toggleRow('Açılışta gizli başla', 'Uygulama açıldığında pencere gösterilmez.', 'startHidden', s.startHidden));
-  behave.appendChild(toggleRow('Kapatınca tepsiye gizle', 'X tuşu uygulamayı kapatmaz, tepsiye indirir.', 'minimizeToTray', s.minimizeToTray));
-  behave.appendChild(toggleRow('Yerel analiz', 'Bu makinedeki oturum dosyalarını okuyup analiz sekmesini doldurur.', 'showAnalytics', s.showAnalytics));
+  behave.appendChild(el('div', 'section-title', st_.behavior));
+  behave.appendChild(toggleRow(st_.openAtLogin, st_.openAtLoginDesc, 'openAtLogin', s.openAtLogin));
+  behave.appendChild(toggleRow(st_.startHidden, st_.startHiddenDesc, 'startHidden', s.startHidden));
+  behave.appendChild(toggleRow(st_.minimizeToTray, st_.minimizeToTrayDesc, 'minimizeToTray', s.minimizeToTray));
+  behave.appendChild(toggleRow(st_.showAnalytics, st_.showAnalyticsDesc, 'showAnalytics', s.showAnalytics));
   behave.appendChild(settingRow(
-    'Eşik uyarıları',
-    'Bu yüzdelere ulaşınca masaüstü bildirimi gönderir.',
+    st_.notifyAt,
+    st_.notifyAtDesc,
     (() => {
       const wrap = el('div', 'row');
       for (const th of [70, 80, 90, 95]) {
-        const b = el('button', 'btn small', `%${th}`);
+        const b = el('button', 'btn small', fmtPct(th));
         const on = (s.notifyAt || []).includes(th);
         b.setAttribute('aria-pressed', String(on));
         if (on) {
@@ -786,21 +801,19 @@ function renderSettings() {
 
   /* --- hesap --- */
   const acct = el('div', 'card');
-  acct.appendChild(el('div', 'section-title', 'Hesap ve güvenlik'));
+  acct.appendChild(el('div', 'section-title', st_.account));
 
-  const st = state.auth || {};
+  const auth_ = state.auth || {};
   acct.appendChild(settingRow(
-    'Oturum',
-    st.loggedIn
-      ? 'Uygulamanın kendi OAuth oturumu açık. Claude Code oturumundan bağımsızdır.'
-      : 'Giriş yapılmadı.',
+    st_.session,
+    auth_.loggedIn ? st_.sessionOn : st_.sessionOff,
     (() => {
-      if (!st.loggedIn) {
-        const b = el('button', 'btn primary small', 'Giriş yap');
+      if (!auth_.loggedIn) {
+        const b = el('button', 'btn primary small', st_.login);
         b.addEventListener('click', () => window.usage.login().catch(() => {}));
         return b;
       }
-      const b = el('button', 'btn small', 'Çıkış yap');
+      const b = el('button', 'btn small', st_.logout);
       b.addEventListener('click', async () => {
         state.auth = await window.usage.logout();
         renderSettings();
@@ -812,16 +825,10 @@ function renderSettings() {
   const encNote = el('div', 'notice');
   encNote.style.marginTop = '10px';
   encNote.append(
-    el('span', null, st.persisted ? '✓' : '!'),
-    el(
-      'span',
-      null,
-      st.persisted
-        ? 'Erişim anahtarı Windows DPAPI ile şifrelenerek saklanıyor. Düz metin olarak diske hiç yazılmaz.'
-        : 'İşletim sistemi şifreleme sağlamıyor — anahtar yalnızca bellekte tutuluyor, uygulamayı kapatınca tekrar giriş gerekecek.'
-    )
+    el('span', null, auth_.persisted ? '✓' : '!'),
+    el('span', null, auth_.persisted ? st_.encOn : st_.encOff)
   );
-  if (!st.persisted) encNote.classList.add('warn');
+  if (!auth_.persisted) encNote.classList.add('warn');
   acct.appendChild(encNote);
   root.appendChild(acct);
 
@@ -830,7 +837,7 @@ function renderSettings() {
   const line = el('div', 'row between');
   line.append(
     el('span', 'faint', `Claude Usage v${state.appInfo?.version || '1.0.0'}`),
-    el('span', 'faint', 'veri: api.anthropic.com/api/oauth/usage')
+    el('span', 'faint', st_.dataSource)
   );
   line.style.fontSize = '11.5px';
   about.appendChild(line);
@@ -891,6 +898,9 @@ function selectRow(title, desc, key, value, options) {
 
 /* ------------------------------ tema uygula ---------------------------- */
 
+// 'name' burada sadece varsayilan/yedek deger -- gosterimde themeDisplayName()
+// kullanilir ki 'claude-light' dile gore ceviri alsin, digerleri marka adi
+// oldugu icin (Midnight/Terminal/Minimal) sabit kalir.
 const THEMES = [
   { id: 'claude', name: 'Claude', colors: ['#1a1714', '#c96442', '#ece6dc'] },
   { id: 'claude-light', name: 'Claude Açık', colors: ['#f7f4ee', '#b4522f', '#2b2620'] },
@@ -898,6 +908,10 @@ const THEMES = [
   { id: 'terminal', name: 'Terminal', colors: ['#060806', '#3ff23f', '#b9f5b9'] },
   { id: 'minimal', name: 'Minimal', colors: ['#141414', '#ededed', '#9a9a9a'] },
 ];
+
+function themeDisplayName(theme) {
+  return theme.id === 'claude-light' ? T.settings.themeClaudeLight : theme.name;
+}
 
 function applyTheme(s) {
   const r = document.documentElement;
@@ -948,9 +962,18 @@ function currentAccentHex() {
 async function save(patch) {
   applyLive(patch);
   state.settings = await window.usage.setSettings(patch);
+
+  if (patch && 'language' in patch) {
+    setLang(state.settings.language);
+    document.documentElement.lang = LANG;
+    applyStaticI18n();
+  }
+
   applyTheme(state.settings);
-  renderSettings();
+  if (state.mini) renderMini();
   if (state.view === 'dashboard') renderDashboard();
+  else if (state.view === 'analytics') renderAnalytics();
+  else if (state.view === 'settings') renderSettings();
 }
 
 /* ------------------------------ mini widget ----------------------------- */
@@ -967,7 +990,7 @@ function miniRow(label, lim) {
   barWrap.appendChild(fill);
   row.appendChild(barWrap);
 
-  const pct = el('span', 'mini-pct', `%${Math.round(lim.percent)}`);
+  const pct = el('span', 'mini-pct', fmtPct(lim.percent));
   pct.style.color = level;
   row.appendChild(pct);
   return row;
@@ -982,17 +1005,17 @@ function renderMini() {
   const limits = (snap && snap.usage && snap.usage.limits) || [];
 
   if (!limits.length) {
-    let msg = 'Veri yok';
-    if (!snap || snap.status === 'loading') msg = 'Yükleniyor…';
-    else if (snap.status === 'logged-out') msg = 'Giriş yapılmadı';
+    let msg = T.mini.noData;
+    if (!snap || snap.status === 'loading') msg = T.mini.loading;
+    else if (snap.status === 'logged-out') msg = T.mini.loggedOut;
     root.appendChild(el('div', 'mini-empty', msg));
     return;
   }
 
   const session = limits.find((l) => l.group === 'session') || limits[0];
   const weekly = limits.find((l) => l.group === 'weekly') || limits[1];
-  if (session) root.appendChild(miniRow('5 saat', session));
-  if (weekly) root.appendChild(miniRow('Hafta', weekly));
+  if (session) root.appendChild(miniRow(T.mini.session, session));
+  if (weekly) root.appendChild(miniRow(T.mini.week, weekly));
 }
 
 async function setMiniMode(mini) {
@@ -1046,14 +1069,14 @@ function wireShell() {
 function tickCountdowns() {
   for (const node of document.querySelectorAll('[data-reset]')) {
     const iso = node.dataset.reset;
-    node.textContent = `sıfırlanır ${fmtClock(iso)} · ${fmtCountdown(iso)}`;
+    node.textContent = T.dash.resetLine(fmtClock(iso), fmtCountdown(iso));
   }
   for (const node of document.querySelectorAll('[data-next]')) {
-    node.textContent = `sonraki kontrol ${fmtCountdown(node.dataset.next, 'şimdi')}`;
+    node.textContent = T.dash.nextPoll(fmtCountdown(node.dataset.next, T.time.now));
   }
   for (const node of document.querySelectorAll('[data-ago]')) {
     const ts = Number(node.dataset.ago);
-    if (ts) node.textContent = `Güncellendi ${fmtAgo(ts)}`;
+    if (ts) node.textContent = T.dash.updatedLine(fmtAgo(ts));
   }
 }
 
@@ -1061,6 +1084,9 @@ async function init() {
   wireShell();
 
   state.settings = await window.usage.getSettings();
+  setLang(state.settings.language);
+  document.documentElement.lang = LANG;
+  applyStaticI18n();
   applyTheme(state.settings);
 
   state.appInfo = await window.usage.appInfo();
@@ -1087,9 +1113,18 @@ async function init() {
   });
 
   window.usage.onSettings((s) => {
+    const langChanged = state.settings && state.settings.language !== s.language;
     state.settings = s;
+    if (langChanged) {
+      setLang(s.language);
+      document.documentElement.lang = LANG;
+      applyStaticI18n();
+    }
     applyTheme(s);
-    if (state.view === 'settings') renderSettings();
+    if (state.mini) renderMini();
+    else if (state.view === 'dashboard') renderDashboard();
+    else if (state.view === 'analytics') renderAnalytics();
+    else if (state.view === 'settings') renderSettings();
   });
 
   window.usage.onOpenSettings(() => switchView('settings'));

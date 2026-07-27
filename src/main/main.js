@@ -12,6 +12,7 @@ const settings = require('./settings');
 const autolaunch = require('./autolaunch');
 const tray = require('./tray');
 const analytics = require('./analytics');
+const I18N = require('../i18n');
 
 /* Tek ornek: ikinci calistirma mevcut pencereyi one getirir. */
 if (!app.requestSingleInstanceLock()) {
@@ -177,7 +178,9 @@ function registerIpc() {
     return { ok: true };
   });
   ipcMain.handle('auth:manual-complete', async (_e, code) => {
-    if (!manualSession) throw new Error('Once giris akisini baslat');
+    if (!manualSession) {
+      throw new Error(I18N.pick(settings.get().language).manual.notStarted);
+    }
     const res = await auth.completeManualLogin(manualSession, code);
     manualSession = null;
     poller.refreshNow();
@@ -250,17 +253,18 @@ function checkThresholds(snap) {
   const thresholds = settings.get().notifyAt;
   if (!thresholds.length || !Notification.isSupported()) return;
 
+  const t = I18N.pick(settings.get().language);
+
   for (const limit of snap.usage?.limits || []) {
     for (const th of thresholds) {
       const key = `${limit.id}:${th}`;
       if (limit.percent >= th) {
         if (!notified.has(key)) {
           notified.add(key);
+          const reset = limit.resetsAt ? formatReset(limit.resetsAt) : null;
           new Notification({
-            title: `Claude Usage — %${th} aşıldı`,
-            body: `${limit.label}: %${Math.round(limit.percent)}${
-              limit.resetsAt ? ` · sıfırlanır ${formatReset(limit.resetsAt)}` : ''
-            }`,
+            title: t.notify.title(th),
+            body: t.notify.body(limit.label, Math.round(limit.percent), reset),
             silent: false,
           }).show();
         }
@@ -275,7 +279,8 @@ function checkThresholds(snap) {
 function formatReset(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  const locale = I18N.pick(settings.get().language).locale;
+  return d.toLocaleString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 /* ---------------------------- yasam dongusu ---------------------------- */

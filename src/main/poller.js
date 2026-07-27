@@ -7,6 +7,8 @@ const auth = require('./auth');
 const net = require('./net');
 const history = require('./history');
 const rateGuard = require('./rate-guard');
+const settings = require('./settings');
+const I18N = require('../i18n');
 
 /**
  * Sabit yoklama: dakikada bir istek.
@@ -142,27 +144,25 @@ class Poller extends EventEmitter {
   }
 
   handleError(err) {
-    let message = 'Baglanti kurulamadi';
+    const t = I18N.pick(settings.get().language);
+    let message = t.errors.network;
     let kind = 'network';
 
     if (err instanceof net.HttpError) {
       if (err.status === 401 || err.status === 403) {
         kind = 'auth';
-        message =
-          err.status === 403
-            ? 'Yetki reddedildi — tekrar giris yapman gerekebilir'
-            : 'Oturum suresi doldu — tekrar giris yap';
+        message = err.status === 403 ? t.errors.auth403 : t.errors.auth401;
       } else if (err.status === 429) {
         kind = 'rate';
-        message = 'Cok fazla istek — bekleniyor';
+        message = t.errors.rate;
         this.retryAfterMs = err.retryAfterMs || undefined;
       } else {
         kind = 'server';
-        message = `Sunucu hatasi (${err.status})`;
+        message = t.errors.server(err.status);
       }
     } else if (/giris yapilmamis|Yenileme token/i.test(err.message || '')) {
       kind = 'auth';
-      message = 'Tekrar giris yapman gerekiyor';
+      message = t.errors.needLogin;
     }
 
     if (kind !== 'auth') this.backoffIndex += 1;
