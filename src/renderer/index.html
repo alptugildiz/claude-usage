@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="tr" data-theme="claude">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    />
+    <title>Claude Usage</title>
+    <link rel="stylesheet" href="css/themes.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+  </head>
+  <body data-mode="full">
+    <div id="shell">
+      <header id="titlebar">
+        <div class="brand"><span class="dot"></span>Claude Usage</div>
+        <div class="spacer"></div>
+        <button class="iconbtn" id="btn-refresh" title="Yenile">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 1 1-2.6-6.4" />
+            <path d="M21 3v6h-6" />
+          </svg>
+        </button>
+        <button class="iconbtn" id="btn-mini" title="Küçük görünüm">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 14h6v6" />
+            <path d="M20 10h-6V4" />
+            <path d="M14 10l7-7" />
+            <path d="M3 21l7-7" />
+          </svg>
+        </button>
+        <button class="winbtn" id="btn-min" title="Küçült">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+        </button>
+        <button class="winbtn danger" id="btn-close" title="Kapat">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+
+      <nav id="tabs" role="tablist">
+        <button class="tab" role="tab" data-view="dashboard" aria-selected="true">
+          Limitler
+        </button>
+        <button class="tab" role="tab" data-view="analytics" aria-selected="false">
+          Analiz
+        </button>
+        <button class="tab" role="tab" data-view="settings" aria-selected="false">
+          Ayarlar
+        </button>
+      </nav>
+
+      <main id="content">
+        <section class="view active" id="view-dashboard"></section>
+        <section class="view" id="view-analytics"></section>
+        <section class="view" id="view-settings"></section>
+      </main>
+
+      <div id="mini-widget">
+        <div id="mini-drag">
+          <span class="dot"></span>
+          <span class="spacer"></span>
+          <button class="iconbtn" id="btn-mini-hide" title="Gizle">
+            <svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+          </button>
+          <button class="iconbtn" id="btn-expand" title="Genişlet">
+            <svg viewBox="0 0 24 24">
+              <path d="M15 3h6v6" />
+              <path d="M9 21H3v-6" />
+              <path d="M21 3l-7 7" />
+              <path d="M3 21l7-7" />
+            </svg>
+          </button>
+        </div>
+        <div id="mini-rows"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

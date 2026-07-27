@@ -1,0 +1,259 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+#shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* --bg-alpha: JS'te temanin arka plan rengi + kullanicinin saydamlik
+     ayarindan hesaplanan rgba() degeri. Sadece bu tek deger saydamlasir --
+     yazi, ikon ve butonlar her zaman tam opak kalir. Boylece Chromium'un
+     saydam pencerelerde butun-agac opacity'siyle yasadigi hayalet
+     metin / kaybolan buton render hatasina hic girilmez. */
+  background: var(--bg-alpha, var(--bg));
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+
+/* ------------------------------ mini mod -------------------------------- */
+/* Kucuk halde: baslik/sekme/icerik gizlenir, sadece mini-widget gorunur. */
+
+#mini-widget {
+  display: none;
+}
+
+body[data-mode="mini"] #titlebar,
+body[data-mode="mini"] #tabs,
+body[data-mode="mini"] #content {
+  display: none;
+}
+
+body[data-mode="mini"] #mini-widget {
+  display: flex;
+}
+
+body[data-mode="mini"] #shell {
+  border-radius: 14px;
+}
+
+/* ------------------------------ başlık çubuğu -------------------------- */
+
+#titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  flex: 0 0 auto;
+}
+
+#titlebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+#titlebar .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow);
+}
+
+/* Herhangi bir flex satirinda kalan bosluk doldurup elemanlari kenara
+   iter (baslik cubugu ve mini widget'ta kullanilir). */
+.spacer {
+  flex: 1;
+}
+
+.winbtn,
+.iconbtn {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  width: 32px;
+  height: 28px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  font-family: inherit;
+}
+
+.winbtn:hover,
+.iconbtn:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
+.winbtn.danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.winbtn svg,
+.iconbtn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------- sekmeler ----------------------------- */
+
+#tabs {
+  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px 0;
+  flex: 0 0 auto;
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* --------------------------------- içerik ------------------------------ */
+
+#content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#content::-webkit-scrollbar {
+  width: 9px;
+}
+
+#content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.view {
+  display: none;
+  animation: fade var(--dur) var(--ease);
+}
+
+.view.active {
+  display: block;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------- yardımcılar --------------------------- */
+
+.muted {
+  color: var(--text-dim);
+}
+
+.faint {
+  color: var(--text-faint);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.wrap {
+  flex-wrap: wrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin: 4px 0 10px;
+}

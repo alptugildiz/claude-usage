@@ -1,0 +1,10 @@
+# Bagimliliklar
+node_modules/
+
+# Build ciktilari (npm run dist ile yeniden uretilir)
+dist/
+build/*.ico
+build/*.png
+
+# Elektron/uygulama runtime verisi (bu repo icin uretilmez ama guvenlik icin)
+*.log

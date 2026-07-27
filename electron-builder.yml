@@ -1,0 +1,37 @@
+appId: com.alptug.claude-usage
+productName: Claude Usage
+copyright: MIT
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - src/**/*
+  - package.json
+  - "!**/*.map"
+
+# ASAR paketleme + butunluk kontrolu (kurulmus dosyalarin degistirilmesini engeller)
+asar: true
+asarUnpack: []
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  # Kod imzalama sertifikasi yok -> imzasiz build (SmartScreen uyarisi normaldir)
+  signAndEditExecutable: true
+
+nsis:
+  oneClick: false
+  perMachine: false            # yonetici yetkisi istemez
+  allowToChangeInstallationDirectory: true
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Claude Usage
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  artifactName: "Claude Usage Setup ${version}.${ext}"
+  uninstallDisplayName: "Claude Usage ${version}"

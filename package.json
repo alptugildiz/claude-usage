@@ -1,0 +1,21 @@
+{
+  "name": "claude-usage",
+  "productName": "Claude Usage",
+  "version": "1.0.1",
+  "description": "Claude kullanim limitlerini anlik takip eden masaustu uygulamasi",
+  "main": "src/main/main.js",
+  "author": "alptug",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "icons": "node scripts/make-icons.js",
+    "dist": "npm run icons && electron-builder --win",
+    "pack": "npm run icons && electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

@@ -1,0 +1,123 @@
+/* Tema paletleri. Her tema ayni degisken setini tanimlar. */
+
+:root {
+  --radius: 14px;
+  --opacity: 1;
+  --accent-override: none;
+
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --font: var(--font-ui);
+
+  --dur: 220ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+:root[data-animations="off"] {
+  --dur: 0ms;
+}
+
+:root[data-mono="on"] {
+  --font: var(--font-mono);
+}
+
+/* ------------------------------- Claude (koyu) ------------------------ */
+:root[data-theme="claude"] {
+  --bg: #1a1714;
+  --bg-elev: #221e1a;
+  --bg-elev-2: #2a2521;
+  --border: #3a332c;
+  --border-soft: #2f2925;
+  --text: #ece6dc;
+  --text-dim: #a49a8b;
+  --text-faint: #6f6659;
+  --accent: #c96442;
+  --accent-soft: rgba(201, 100, 66, 0.16);
+  --ok: #7ec88c;
+  --warn: #e2a94e;
+  --danger: #d9604a;
+  --track: rgba(236, 230, 220, 0.1);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  --glow: 0 0 0 1px rgba(201, 100, 66, 0.25);
+}
+
+/* ------------------------------- Claude (açık) ------------------------ */
+:root[data-theme="claude-light"] {
+  --bg: #f7f4ee;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f1ece3;
+  --border: #e0d8cb;
+  --border-soft: #eae3d8;
+  --text: #2b2620;
+  --text-dim: #6d6558;
+  --text-faint: #9c9384;
+  --accent: #b4522f;
+  --accent-soft: rgba(180, 82, 47, 0.12);
+  --ok: #4a9a5e;
+  --warn: #c0871f;
+  --danger: #c04a37;
+  --track: rgba(43, 38, 32, 0.09);
+  --shadow: 0 16px 40px rgba(90, 74, 54, 0.16);
+  --glow: 0 0 0 1px rgba(180, 82, 47, 0.2);
+}
+
+/* -------------------------------- Midnight ---------------------------- */
+:root[data-theme="midnight"] {
+  --bg: #0e1020;
+  --bg-elev: #161a2e;
+  --bg-elev-2: #1e2340;
+  --border: #2b3157;
+  --border-soft: #232847;
+  --text: #e4e7f7;
+  --text-dim: #969db9;
+  --text-faint: #626a8c;
+  --accent: #7c8cf8;
+  --accent-soft: rgba(124, 140, 248, 0.18);
+  --ok: #63d6a4;
+  --warn: #f0c05a;
+  --danger: #f2708a;
+  --track: rgba(228, 231, 247, 0.09);
+  --shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  --glow: 0 0 26px rgba(124, 140, 248, 0.25);
+}
+
+/* -------------------------------- Terminal ---------------------------- */
+:root[data-theme="terminal"] {
+  --bg: #060806;
+  --bg-elev: #0c110c;
+  --bg-elev-2: #121a12;
+  --border: #1e2d1e;
+  --border-soft: #162216;
+  --text: #b9f5b9;
+  --text-dim: #5f9f5f;
+  --text-faint: #3d6b3d;
+  --accent: #3ff23f;
+  --accent-soft: rgba(63, 242, 63, 0.13);
+  --ok: #3ff23f;
+  --warn: #e8e04a;
+  --danger: #ff5f5f;
+  --track: rgba(185, 245, 185, 0.1);
+  --shadow: 0 0 40px rgba(63, 242, 63, 0.08);
+  --glow: 0 0 20px rgba(63, 242, 63, 0.3);
+  --font: var(--font-mono);
+}
+
+/* --------------------------------- Minimal ---------------------------- */
+:root[data-theme="minimal"] {
+  --bg: #141414;
+  --bg-elev: #1c1c1c;
+  --bg-elev-2: #242424;
+  --border: #333333;
+  --border-soft: #2a2a2a;
+  --text: #ededed;
+  --text-dim: #9a9a9a;
+  --text-faint: #6a6a6a;
+  --accent: #ededed;
+  --accent-soft: rgba(237, 237, 237, 0.1);
+  --ok: #9a9a9a;
+  --warn: #cfcfcf;
+  --danger: #ededed;
+  --track: rgba(237, 237, 237, 0.1);
+  --shadow: none;
+  --glow: none;
+}
