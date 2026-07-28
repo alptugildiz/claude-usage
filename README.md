@@ -3,6 +3,15 @@
 Claude kullanım limitlerini sistem tepsisinden anlık takip eden Windows masaüstü uygulaması.
 `/usage` komutunun gösterdiği her şeye terminal açmadan erişirsin.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="400" alt="Ana ekran" />
+  <img src="docs/screenshots/analytics.png" width="400" alt="Analiz sekmesi" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/settings.png" width="400" alt="Ayarlar" />
+  <img src="docs/screenshots/mini-widget.png" width="220" alt="Mini widget" />
+</p>
+
 ## Ne yapar
 
 - **Canlı limitler** — 5 saatlik oturum, haftalık (tüm modeller + model bazlı), ekstra kullanım.
@@ -48,8 +57,8 @@ Bu uygulama hesabına erişir, o yüzden tasarımı buna göre:
 | Yerel analiz | `~/.claude/projects/**/*.jsonl` (artımlı okunur, `CLAUDE_CONFIG_DIR`'e saygı duyar) |
 
 Renk seviyeleri API'nin kendi `severity` alanından gelir — yani `/usage` ile aynı değerlendirme.
-Yoklama uyarlanabilir: pencere açıkken veya kullanım yüksekken 25 sn, arka planda 5 dk'ya kadar
-yavaşlar, 429'da üstel backoff uygular, asla 15 sn'nin altına inmez.
+Yoklama sabit: dakikada bir istek. 429'da üstel backoff uygular (60s → 2dk → 5dk → 10dk tavan),
+bu bekleme uygulama yeniden başlatmaları arasında da hatırlanır.
 
 Analiz sekmesindeki maliyet **tahmindir** — abonelikte token başına ödeme yapmazsın; bu sayı
 "aynı işi API'den yapsaydın ne tutardı" karşılaştırmasıdır.
